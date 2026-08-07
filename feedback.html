@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>写反馈 · 汉语历时句法学知识库</title>
+<style>
+  body{max-width:560px;margin:40px auto;padding:0 20px;font-family:"Songti SC","Noto Serif SC",serif;color:#2b2b2b;line-height:1.7;background:#faf8f4}
+  h1{font-size:1.5em;border-bottom:2px solid #b03a2e;padding-bottom:8px;color:#7a2e25}
+  p.hint{color:#666;font-size:.92em}
+  label{display:block;margin:14px 0 4px;font-weight:bold;font-size:.95em}
+  input,select,textarea{width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:1em;box-sizing:border-box;background:#fff}
+  input[readonly]{background:#eee;color:#555}
+  button{margin-top:18px;padding:10px 28px;background:#b03a2e;color:#fff;border:none;border-radius:4px;font-size:1em;cursor:pointer}
+  button:hover{background:#8f2e24}
+  #status{margin-top:14px;font-weight:bold;min-height:1.4em}
+  .ok{color:#2e7d32}.err{color:#c62828}
+</style>
+</head>
+<body>
+<h1>✍️ 写反馈 / 批注</h1>
+<p class="hint">反馈会自动追加到对应笔记的「微信反馈」区（由本机调度器自动拉取并入笔记），下次建站后即可在网站与 Obsidian 中看到。</p>
+<form id="fb">
+  <label>相关笔记</label>
+  <input id="note" name="note" readonly>
+  <label>反馈类型</label>
+  <select name="kind">
+    <option value="纠错">纠错</option>
+    <option value="补充">补充</option>
+    <option value="想法">想法</option>
+    <option value="问题">问题</option>
+  </select>
+  <label>内容</label>
+  <textarea name="text" rows="6" required placeholder="写下你的批注…"></textarea>
+  <button type="submit">提交反馈</button>
+</form>
+<div id="status"></div>
+<script>
+const WORKER_URL = "YOUR_WORKER_URL"; // TODO: 部署 Cloudflare Worker 后替换为 https://xxx.workers.dev
+const params = new URLSearchParams(location.search);
+const note = params.get("note") || "";
+document.getElementById("note").value = note ? decodeURIComponent(note) : "（未指定，将存为待匹配）";
+document.getElementById("fb").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (WORKER_URL.indexOf("YOUR_WORKER_URL") >= 0) {
+    document.getElementById("status").innerHTML = '<span class="err">⚠️ 反馈通道尚未部署（Worker URL 未配置）</span>';
+    return;
+  }
+  const data = {
+    note: document.getElementById("note").value,
+    kind: document.querySelector("[name=kind]").value,
+    text: document.querySelector("[name=text]").value,
+    ts: new Date().toISOString()
+  };
+  const st = document.getElementById("status");
+  st.innerHTML = "提交中…";
+  try {
+    const r = await fetch(WORKER_URL + "/feedback", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data)
+    });
+    st.innerHTML = r.ok ? '<span class="ok">✅ 反馈已提交，将自动追加到笔记</span>'
+                        : '<span class="err">⚠️ 提交失败：' + r.status + '</span>';
+    if (r.ok) document.querySelector("[name=text]").value = "";
+  } catch (err) {
+    st.innerHTML = '<span class="err">⚠️ 网络错误：' + err.message + '</span>';
+  }
+});
+</script>
+</body>
+</html>
